@@ -141,20 +141,10 @@ action
 ];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Auxiliary Functions*)
 
 
-(*ClearAll[getRes];
-getRes::usage = "getRes[\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`] returns the solution of the fixed point equation for the order parameters q0 and r0"
-getRes[\[Psi]1_,\[Psi]2_,\[Lambda]V_,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{h,res,nres},
-h[q1_,r1_]:=SeriesCoefficient[SeriesCoefficient[SVanilla[\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1,\[Mu]Star],{q2,0,0}],{r2,0,0}];
-	res=NSolve[{D[h[q1,r1],r1]==0,D[h[q1,r1],q1]==0},{q1,r1}];
-	nres=Select[res,(Im[#[[1]][[2]]]==0&&Im[#[[2]][[2]]]==0&&#[[1]][[2]]>0&&#[[2]][[2]]>0)&];
-	If[Length[nres]>=1,nres=nres[[1]],nres=Nothing];
-	nres
-];*)
-(*newest*)
 ClearAll[getRes];
 getRes::usage = "getRes[\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`] returns the solution of the fixed point equation for the order parameters q0 and r0";
 getRes[\[Psi]1_,\[Psi]2_,\[Lambda]V_,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{h,res,nres,S0},
@@ -167,20 +157,15 @@ S0=SVanilla[\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1,\[Mu]Star]//.{r2->0,q2->0};
 
 ClearAll[getValue];
 getValue::usage = "getValue[A,numres,hqq,hrq,hrr] replaces, in expressions A, the oscilation around the minima by their relative value by the value of the hessian evaluated at the fix point solution";
-getValue[A_,numres_,hqq_,hrq_,hrr_]:=Module[{AA},
-AA=A//.Dispatch[numres];
-AA=Series[AA,{r2,0,2},{q2,0,2}];
-AA=Normal[AA];
-AA=(AA//Expand)//.Dispatch[{Times[c___,q2,r2^b_ ]/;(b>1 ):> 0.0,Times[c___,q2^b_,r2]/;(b>1 ):> 0.0 ,Times[c___,r2^aa_,q2^b_]/;(b>1 Or aa>1 ):> 0.0}];
-AA=(AA//Expand)//. Dispatch[{Times[c___,r2,r2]:>c r2r2,Times[c___,q2,r2]:>c q2r2,Times[c___,q2,q2]:>c  q2q2}]//Simplify;
-AA=(AA//Expand)//.Dispatch[{Times[c___,r2]:>0,Times[c___,q2]:>0}];
-AA=AA//.Dispatch[{r2r2 -> hrr, q2r2 -> hrq, q2q2 -> hqq}];
-AA=AA//.Dispatch[numres];
-AA
+getValue[numres_,Haction_,pre_]:=Module[{hessPrefactor,result},
+hessPrefactor = Table[D[D[pre,x],y],{x,{q1,r1,q2,r2}},{y,{q1,r1,q2,r2}}]//.{q2->0,r2->0}//.numres;
+result = Sum[Haction[[i]][[j]]hessPrefactor[[i,j]],{i,1,4},{j,1,4}];
+result=result//.numres;
+result/2.0
 ];
 
 
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Function for the Vanilla Error*)
 
 
@@ -200,29 +185,27 @@ getVanillaTerms[\[Psi]1,\[Psi]2,\[Lambda],\[Mu]1_:0.5,\[Mu]Star]
 returns the vanilla terms in the error {\[CapitalPsi]1,\[CapitalPsi]2,\[CapitalPsi]3}";
 ClearAll[getVanillaTerms];
 getVanillaTerms[\[Psi]1_,\[Psi]2_,\[Lambda]V_,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{aa,bb,MW,MX,A,QA,gW,
-MX1,MX2,A1,A2,QA1,QA2,Q1,Q2,u,u2,MW1,MW2,MM1,MM2,MMM1,MMM2,hqq,hqr,hrr,HH,getPsi3,getPsi2,getPsi1,NX1,NX2,numres
+MX1,MX2,A1,A2,QA1,QA2,Q1,Q2,u,u2,MW1,MW2,MM1,MM2,MMM1,MMM2,HH,getPsi3,getPsi2,getPsi1,NX1,NX2,numres
  },
 numres=getRes[\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1,\[Mu]Star];
 If[numres==Nothing, Return[{0,0,0}] ];
 
 HH=getHessInvVanilla[numres,\[Psi]1,\[Psi]2,\[Lambda]V,\[Mu]1,\[Mu]Star];
-{hqq,hqr,hrr}={HH[[3]][[3]],HH[[3]][[4]],HH[[4]][[4]]};
+aa=1/(1+\[Mu]1^2 \[Psi]1 r1)//Simplify;
+bb=-\[Mu]1^2 \[Psi]1 r2/((1+\[Mu]1^2 \[Psi]1 r1)(1+\[Mu]1^2 \[Psi]1 r1))//Simplify;
+MX1=(r1*aa)//Simplify;
+MX2=(r1 bb + r2 aa)//Simplify;
 
-aa=1/(1+\[Mu]1^2 \[Psi]1 r1)//.numres//Simplify;
-bb=-\[Mu]1^2 \[Psi]1 r2/((1+\[Mu]1^2 \[Psi]1 r1)(1+\[Mu]1^2 \[Psi]1 r1))//.numres//Simplify;
-MX1=(r1*aa//.numres)//Simplify;
-MX2=(r1 bb + r2 aa)//.numres//Simplify;
+A1=(\[Mu]Star^2-\[Mu]Star^2 * \[Mu]1^2 \[Psi]1 MX1)//Simplify;
+A2 =-(\[Mu]Star^2 \[Mu]1^2 \[Psi]1 MX2)//Simplify;
 
-A1=(\[Mu]Star^2-\[Mu]Star^2 * \[Mu]1^2 \[Psi]1 MX1)//.numres//Simplify;
-A2 =-(\[Mu]Star^2 \[Mu]1^2 \[Psi]1 MX2)//.numres//Simplify;
-
-Q1=numres[[1]][[2]]//Simplify;
+Q1=q1//Simplify;
 Q2=q2;
 QA1=A1 Q1;
 QA2= A1 Q2 + Q1 A2//Simplify;
 
-u=(1+\[Psi]1 QA1)//.numres//Simplify;
-u2= (\[Psi]1 QA2)//.numres//Simplify;
+u=(1+\[Psi]1 QA1)//Simplify;
+u2= (\[Psi]1 QA2)//Simplify;
 MW1=Q1/u//Simplify;
 MW2=(-Q1 u2)/(u*u)+Q2/u//Simplify;
 
@@ -234,41 +217,34 @@ MMM2=MM2 MX1+MM1 MX2//Expand//Simplify;
 NX1=aa MX1//Expand//Simplify;
 NX2=aa MX2 + bb MX1//Expand//Simplify;
 
-getPsi3:=Module[{t1,t2,t3,t4,psi3},
+getPsi3:=Module[{t1,t2,t3,t4,psi3,pre,result},
 t1=( \[Psi]2 \[Psi]1^2 (\[Mu]1^2 r2 + \[Mu]Star^2 q2) \[Mu]1^2 MX2)//Expand//Simplify;
 t2=((\[Psi]2 \[Psi]1^2 (\[Mu]1^2 r2 + \[Mu]Star^2 q2) )\[Mu]Star^2 MW2)//Expand//Simplify;
 t3=(\[Psi]2 \[Psi]1^2 (\[Mu]1^2 r2 + \[Mu]Star^2 q2)) \[Mu]1^4 \[Mu]Star^2  \[Psi]1^2 (2 MX1 MX2 MW1 + MX1^2 MW2)//Expand//Simplify;
 t4=-(\[Psi]2 \[Psi]1^2 (\[Mu]1^2 r2 + \[Mu]Star^2 q2)) \[Mu]1^2 \[Psi]1 \[Mu]Star^2 2 (MX1 MW2+ MW1 MX2)//Expand//Simplify;
-t1=getValue[t1,numres,hqq,hqr,hrr];
-t2=getValue[t2,numres,hqq,hqr,hrr];
-t3=getValue[t3,numres,hqq,hqr,hrr];
-t4=getValue[t4,numres,hqq,hqr,hrr];
-psi3 = -t1 - t2 - t3 - t4;
+pre = -t1 - t2 - t3 - t4;
+psi3 = getValue[numres,HH,pre];
 psi3
 ];
 
-getPsi1:=Module[{t1,t2,t3,psi1},
-t1=(\[Mu]1^2 \[Psi]1 \[Psi]2 (MX1+MX2))//Expand//Simplify;
+getPsi1:=Module[{t1,t2,t3,psi1,pre},
+t1=((\[Mu]1^2 \[Psi]1 \[Psi]2 (MX1+MX2))//Expand)//Simplify;
 t2=(\[Mu]1^2 \[Psi]1 \[Psi]2)( \[Mu]1^2 \[Psi]1^2 \[Mu]Star^2 (MMM1+MMM2))//Expand//Simplify;
 t3=(\[Mu]1^2 \[Psi]1 \[Psi]2)(  \[Psi]1 \[Mu]Star^2 (MM1+MM2 ))//Expand//Simplify;
-t1=getValue[t1,numres,hqq,hqr,hrr];
-t2=getValue[t2,numres,hqq,hqr,hrr];
-t3=getValue[t3,numres,hqq,hqr,hrr];
-psi1 = t1 + t2 - t3 ;
-psi1
+pre=t1 +t2 - t3//.{numres};
+psi1=pre//.{r2->0,q2->0}//Simplify;
+psi1[[1]]
 ];
 
-getPsi2:=Module[{t1,t2,t3,psi2},
+getPsi2:=Module[{t1,t2,t3,psi2,pre},
 t1=NX2+1/\[Psi]2  MX2+ 2*(\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2)(MW2 MX1 NX1+MW1 MX2 NX1+MW1 MX1 NX2) + (\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2)/\[Psi]2 (MW2 MX1 MX1+MW1 MX2 MX1+MW1 MX1 MX2)+(\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2)^2 (2 MW1 MW2 MX1^2 NX1+2 MW1^2 MX1 MX2 NX1+MW1^2 MX1^2 NX2)//Expand//Simplify;
 t1=\[Psi]1^2 \[Psi]2^2 (\[Mu]Star^2 q2+\[Mu]1^2 r2)(\[Mu]1^2) t1//Expand//Simplify;
 t2=(NX1 MW2 + NX2 MW1)+1/\[Psi]2 (MX1 MW2 + MX2 MW1)+ (\[Mu]1 \[Mu]Star \[Psi]1)^2 (2 MW1 MW2 MX1 NX1+MW1^2 MX2 NX1+MW1^2 MX1 NX2);
 t2=2*\[Psi]1^2 \[Psi]2^2 (\[Mu]Star^2 q2+\[Mu]1^2 r2)(\[Mu]1^2 \[Psi]1 \[Mu]Star^2)t2 //Expand//Simplify;
 t3=1/\[Psi]2 MW2 + (2 MW1 NX1 MW2 + MW1^2 NX2  )(\[Mu]1 \[Mu]Star \[Psi]1)^2;
 t3=\[Psi]2^2 \[Psi]1^2  (\[Mu]Star^2 q2+\[Mu]1^2 r2)\[Mu]Star^2  t3 //Expand//Simplify;
-t1=getValue[t1,numres,hqq,hqr,hrr];
-t2=getValue[t2,numres,hqq,hqr,hrr];
-t3=getValue[t3,numres,hqq,hqr,hrr];
-psi2 =- t1 + t2 - t3 ;
+pre =- t1 + t2 - t3 ;
+psi2=getValue[numres,HH,pre];
 psi2
 ];
 {getPsi1,getPsi2,getPsi3}
@@ -304,12 +280,11 @@ getMixedTerms::usage = "getMixedTerms is a function that takes 5 parameters 2 of
 getMixedTerms[\[Psi]1,\[Psi]2,\[Lambda],\[Mu]1_:0.5,\[Mu]Star]
 returns the vanilla terms in the error {\[CapitalPsi]4,\[CapitalPsi]5}";
 ClearAll[getMixedTerms];
-getMixedTerms[\[Psi]1_,\[Psi]2_,\[Lambda]M_,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{numres,HH,getPsi4,getPsi5,gX,cc,MX,A,MW,MXMW,MXMWMX,NX,MXMWNX,MXMWNXMWMX,NXMW,MXMWNXMW,MWNXMW,hqq,hrq,hrr},
+getMixedTerms[\[Psi]1_,\[Psi]2_,\[Lambda]M_,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{numres,HH,getPsi4,getPsi5,gX,cc,MX,A,MW,MXMW,MXMWMX,NX,MXMWNX,MXMWNXMWMX,NXMW,MXMWNXMW,MWNXMW},
 (*solution to fix point equations*)
 numres=getRes[\[Psi]1,\[Psi]2,\[Lambda]M,\[Mu]1,\[Mu]Star];
 If[numres==Nothing, Return[{0,0}]];
 HH=getHessInvMixed[numres,\[Psi]1,\[Psi]2,\[Lambda]M,\[Mu]1,\[Mu]Star];
-{hqq,hrq,hrr}={2* HH[[3,3]],2*HH[[3,4]],2*HH[[4,4]]};
 
 gX=IdentityMatrix[2]+\[Mu]1^2 \[Psi]1 RR;
 cc=Inverse[gX]//Simplify;
@@ -329,7 +304,7 @@ NXMW=(Dot[NX,MW]//Expand);
 MXMWNXMW=(Dot[MXMW,NXMW]//Expand);
 MWNXMW=(Dot[MW,NXMW]);
 
-getPsi4:=Module[{t1,t2,t3,psi4},
+getPsi4:=Module[{t1,t2,t3,psi4,pre},
 t1= NX[[1,2]]+1/\[Psi]2 MX[[1,2]]+ 2*(\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2) MXMWNX[[1,2]]+(\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2)/\[Psi]2 MXMWMX[[1,2]]+(\[Mu]1^2 \[Mu]Star^2 \[Psi]1^2)^2 MXMWNXMWMX[[1,2]];
 t1=(\[Mu]1^2 \[Psi]1^2 \[Psi]2^2 )(\[Mu]1^2 r2) t1//Expand;
 
@@ -338,23 +313,18 @@ t2=2*(\[Mu]1^2 \[Psi]2^2 \[Psi]1^3 \[Mu]Star^2)( r2 \[Mu]1^2)t2 //Expand;
 
 t3=1/\[Psi]2 MW[[1,2]] + MWNXMW[[1,2]](\[Mu]1 \[Mu]Star \[Psi]1)^2 ;
 t3=\[Psi]2^2 \[Psi]1^2  \[Mu]Star^2 (\[Mu]1^2 r2) t3 //Expand;
-t1=getValue[t1,numres,hqq,hrq,hrr];
-t2=getValue[t2,numres,hqq,hrq,hrr];
-t3=getValue[t3,numres,hqq,hrq,hrr];
-psi4=t1-t2+t3//Simplify;
+pre=t1-t2+t3;
+psi4=getValue[numres,2*HH,pre];
 psi4
 ];
 
-getPsi5:=Module[{t1,t2,t3,t4,psi5},
+getPsi5:=Module[{t1,t2,t3,t4,psi5,pre},
 t1=\[Mu]1^2 \[Psi]1^2 \[Psi]2 r2 \[Mu]1^2 MX[[1,2]]//Expand;
 t2=(\[Mu]1^2 \[Psi]1^2 \[Psi]2 r2) \[Mu]1^4 \[Mu]Star^2 \[Psi]1^2 MXMWMX[[1,2]]//Expand;
 t3=(\[Mu]1^2 \[Psi]1^2 \[Psi]2 r2) \[Mu]1^2 \[Mu]Star^2 \[Psi]1 (MXMW[[1,2]]+MXMW[[2,1]]);
 t4=\[Mu]1^2 \[Psi]1^2 \[Psi]2 r2 \[Mu]Star^2 MW[[1,2]]//Expand;
-t1=getValue[t1,numres,hqq,hrq,hrr];
-t2=getValue[t2,numres,hqq,hrq,hrr];
-t3=getValue[t3,numres,hqq,hrq,hrr];
-t4=getValue[t4,numres,hqq,hrq,hrr];
-psi5=(t1+t2-t3+t4)//Simplify;
+pre=(t1+t2-t3+t4)//Simplify;
+psi5=getValue[numres,2*HH,pre];
 psi5
 ];
 {getPsi4,getPsi5}
@@ -389,10 +359,7 @@ errKinf=F1^2 (1-2 \[CapitalPsi]1)+ FStar^2+ (F1^2 \[CapitalPsi]4+(FStar^2+\[Tau]
 ];
 
 
-Length[{0}]
-
-
-(* ::Subsubsection::Closed:: *)
+(* ::Subsubsection:: *)
 (*Function for \[CapitalPsi]4*)
 
 
@@ -412,22 +379,21 @@ getPsi4::usage = "getPsi4 is a function that takes 8 parameters 5 of which have 
 ErrorMixed[\[Psi]1,\[Psi]2,\[Lambda],F1_:1.0,FStar_:0.1,\[Tau]_:0.0,\[Mu]1_:0.5,\[Mu]Star]
  returns 1 outputs: \[CapitalPsi]4 which is the additional term appearing in the bias and in the data variance";
 ClearAll[getPsi4];
-getPsi4[\[Psi]1_,\[Psi]2_,\[Lambda]_,F1_:1.0,FStar_:0.0,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{psi4,gX,cc,MX,MW,MA,MXMW,MXMWMX,A,MM1,MM2,MW1,MW2,t1,t2,t3,t4,numres,hess,hqq,hrq,hrr,a,b,NX},
+getPsi4[\[Psi]1_,\[Psi]2_,\[Lambda]_,F1_:1.0,FStar_:0.0,\[Mu]1_:0.5,\[Mu]Star_:0.3014051374945435`]:=Module[{HH,pre,psi4,gX,cc,MX,MW,MA,MXMW,MXMWMX,A,MM1,MM2,MW1,MW2,t1,t2,t3,t4,numres,a,b,NX},
 (*solution to fix point equations*)
 
 numres=getRes[\[Psi]1,\[Psi]2,\[Lambda],\[Mu]1,\[Mu]Star];
 If[numres==Nothing,Return[{\[Lambda],0,0,0}]];
 (*Print[numres];*)
 (*obtaining the hessian*)
-hess=getHessInvBag[numres,\[Psi]1,\[Psi]2,\[Lambda],\[Mu]1,\[Mu]Star];
-{hqq,hrq,hrr}={hess[[3,3]]*2,hess[[3,4]]*2,hess[[4,4]]*2};
-gX=IdentityMatrix[2]+\[Mu]1^2 \[Psi]1 {{RR[[1,1]],0},{0,RR[[2,2]]}}//.numres;
+HH=getHessInvBag[numres,\[Psi]1,\[Psi]2,\[Lambda],\[Mu]1,\[Mu]Star];
+gX=IdentityMatrix[2]+\[Mu]1^2 \[Psi]1 {{RR[[1,1]],0},{0,RR[[2,2]]}};
 cc=Inverse[gX]//Simplify;
-MX=Dot[{{RR[[1,1]],0},{0,RR[[2,2]]}},cc]//.numres;
+MX=Dot[{{RR[[1,1]],0},{0,RR[[2,2]]}},cc];
 A={{\[Mu]Star^2-\[Mu]Star^2 \[Psi]1 \[Mu]1^2 MX[[1,1]],0},{0,\[Mu]Star^2-\[Mu]Star^2 \[Psi]1 \[Mu]1^2 MX[[2,2]]}}//Expand//Simplify;
 MW={{QQ[[1,1]]/(1+\[Psi]1 A[[1,1]]QQ[[1,1]]),0},{0,QQ[[2,2]]/(1+\[Psi]1 A[[2,2]]QQ[[2,2]])}}//.numres//Simplify;
 
-NX=1/(1+\[Mu]1^2 \[Psi]1 RR[[1,1]]) r2 1/(1+\[Mu]1^2 \[Psi]1 RR[[2,2]])//.numres;
+NX=1/(1+\[Mu]1^2 \[Psi]1 RR[[1,1]]) r2 1/(1+\[Mu]1^2 \[Psi]1 RR[[2,2]]);
 a=(\[Mu]1 \[Mu]Star \[Psi]1);
 b=\[Mu]1^2 \[Psi]1 \[Psi]2^2;
 
@@ -441,8 +407,7 @@ t2=2*(\[Mu]1^2 \[Psi]2^2 \[Psi]1^3 \[Mu]Star^2)( r2 \[Mu]1^2)t2 //Expand//Simpli
 
 t3=MW[[2,2]]NX MW[[1,1]](\[Mu]1 \[Mu]Star \[Psi]1)^2 \[Psi]2;
 t3=\[Psi]2 \[Psi]1^2  \[Mu]Star^2 (\[Mu]1^2 r2) t3 //Expand//Simplify;
-t1=getValue[t1,numres,hqq,hrq,hrr];
-t2=getValue[t2,numres,hqq,hrq,hrr];
-t3=getValue[t3,numres,hqq,hrq,hrr];
-t1-t2+t3
+pre=t1-t2+t3;
+psi4=getValue[numres,2*HH,pre];
+psi4
 ];
